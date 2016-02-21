@@ -109,24 +109,28 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         setSurfaceTextureListener(this);
 
         mProgressUpdateRunnable = new Runnable() {
+            int count = 0;
             @Override
             public void run() {
 
                 if (mMediaPlayerValid) {
-                    boolean foreground = false;
-                    try {
-                        foreground = new ForegroundCheckTask().execute(mThemedReactContext).get();
-                    }
-                    catch(Exception ex){
-                        Log.e("ReactVideoView",ex.getMessage());
-                    }
-                    //TODO : need improve
+                    this.count++;
+                    if (this.count>=4) {
+                        boolean foreground = false;
+                        try {
+                            foreground = new ForegroundCheckTask().execute(mThemedReactContext).get();
+                        } catch (Exception ex) {
+                            Log.e("ReactVideoView", ex.getMessage());
+                        }
+                        //TODO : need improve
 //                    Log.d("ReactVideoView","foreground "+ foreground);
-                    if (!foreground){
-                        mMediaPlayerValid = false;
-                        mMediaPlayer.stop();
-                        mMediaPlayer.release();
-                        return;
+                        if (!foreground) {
+                            mMediaPlayerValid = false;
+                            mMediaPlayer.stop();
+                            mMediaPlayer.release();
+                            return;
+                        }
+                        this.count = 0;
                     }
                     WritableMap event = Arguments.createMap();
                     event.putDouble(EVENT_PROP_CURRENT_TIME, mMediaPlayer.getCurrentPosition() / 1000.0);
