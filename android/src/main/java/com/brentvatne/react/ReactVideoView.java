@@ -1,6 +1,9 @@
 package com.brentvatne.react;
 
+import android.app.ActivityManager;
+import android.content.Context;
 import android.media.MediaPlayer;
+import android.os.AsyncTask;
 import android.os.Handler;
 import android.util.Log;
 import com.facebook.react.bridge.Arguments;
@@ -9,6 +12,33 @@ import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
 import com.yqritc.scalablevideoview.ScalableType;
 import com.yqritc.scalablevideoview.ScalableVideoView;
+
+import java.util.List;
+
+
+class ForegroundCheckTask extends AsyncTask<Context, Void, Boolean> {
+
+    @Override
+    protected Boolean doInBackground(Context... params) {
+        final Context context = params[0].getApplicationContext();
+        return isAppOnForeground(context);
+    }
+
+    private boolean isAppOnForeground(Context context) {
+        ActivityManager activityManager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        List<ActivityManager.RunningAppProcessInfo> appProcesses = activityManager.getRunningAppProcesses();
+        if (appProcesses == null) {
+            return false;
+        }
+        final String packageName = context.getPackageName();
+        for (ActivityManager.RunningAppProcessInfo appProcess : appProcesses) {
+            if (appProcess.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND && appProcess.processName.equals(packageName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
 
 public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnPreparedListener, MediaPlayer
         .OnErrorListener, MediaPlayer.OnBufferingUpdateListener, MediaPlayer.OnCompletionListener {
@@ -83,6 +113,21 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
             public void run() {
 
                 if (mMediaPlayerValid) {
+                    boolean foreground = false;
+                    try {
+                        foreground = new ForegroundCheckTask().execute(mThemedReactContext).get();
+                    }
+                    catch(Exception ex){
+                        Log.e("ReactVideoView",ex.getMessage());
+                    }
+                    //TODO : need improve
+//                    Log.d("ReactVideoView","foreground "+ foreground);
+                    if (!foreground){
+                        mMediaPlayerValid = false;
+                        mMediaPlayer.stop();
+                        mMediaPlayer.release();
+                        return;
+                    }
                     WritableMap event = Arguments.createMap();
                     event.putDouble(EVENT_PROP_CURRENT_TIME, mMediaPlayer.getCurrentPosition() / 1000.0);
                     event.putDouble(EVENT_PROP_PLAYABLE_DURATION, mVideoBufferedDuration / 1000.0); //TODO:mBufferUpdateRunnable
@@ -275,12 +320,23 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
     @Override
     protected void onDetachedFromWindow() {
         mMediaPlayerValid = false;
-        super.onDetachedFromWindow();
+        try {
+            super.onDetachedFromWindow();
+        }
+        catch(Exception ex){
+            Log.e("ReactVideoView","onDetachedFromWindow err");
+        }
     }
 
     @Override
     protected void onAttachedToWindow() {
-        super.onAttachedToWindow();
-        setSrc(mSrcUriString, mSrcType, mSrcIsNetwork);
+        try {
+            super.onAttachedToWindow();
+            setSrc(mSrcUriString, mSrcType, mSrcIsNetwork);
+        }
+        catch(Exception ex){
+            Log.e("ReactVideoView","onAttachedToWindow err");
+        }
+
     }
 }
