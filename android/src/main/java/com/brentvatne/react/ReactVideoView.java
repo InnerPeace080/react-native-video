@@ -1,11 +1,14 @@
 package com.brentvatne.react;
 
+import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.media.MediaPlayer;
 import android.os.AsyncTask;
 import android.os.Handler;
 import android.util.Log;
+import android.view.WindowManager;
+
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.ThemedReactContext;
@@ -73,6 +76,7 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
     public static final String EVENT_PROP_DURATION = "duration";
     public static final String EVENT_PROP_PLAYABLE_DURATION = "playableDuration";
     public static final String EVENT_PROP_CURRENT_TIME = "currentTime";
+    public static final String EVENT_PROP_BUFFER_PERCENT = "bufferPercent";
     public static final String EVENT_PROP_SEEK_TIME = "seekTime";
 
     public static final String EVENT_PROP_ERROR = "error";
@@ -80,6 +84,7 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
     public static final String EVENT_PROP_EXTRA = "extra";
 
     private ThemedReactContext mThemedReactContext;
+    private Activity _activity;
     private RCTEventEmitter mEventEmitter;
 
     private Handler mProgressUpdateHandler = new Handler();
@@ -97,13 +102,14 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
 
     private boolean mMediaPlayerValid = false; // True if mMediaPlayer is in prepared, started, or paused state.
     private int mVideoDuration = 0;
-    private int mVideoBufferedDuration = 0;
+    private int mVideoBufferedPercent = 0;
 
-    public ReactVideoView(ThemedReactContext themedReactContext) {
+    public ReactVideoView(ThemedReactContext themedReactContext,Activity activity) {
         super(themedReactContext);
-
+        _activity = activity;
         mThemedReactContext = themedReactContext;
         mEventEmitter = themedReactContext.getJSModule(RCTEventEmitter.class);
+
 
         initializeMediaPlayerIfNeeded();
         setSurfaceTextureListener(this);
@@ -112,6 +118,11 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
             int count = 0;
             @Override
             public void run() {
+
+//                if (!mMediaPlayerValid) {
+//                    mProgressUpdateHandler.removeCallbacks(mProgressUpdateRunnable);
+//                    return;
+//                }
 
                 if (mMediaPlayerValid) {
                     this.count++;
@@ -132,9 +143,11 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
                         }
                         this.count = 0;
                     }
+                    mVideoDuration = mMediaPlayer.getDuration();
                     WritableMap event = Arguments.createMap();
                     event.putDouble(EVENT_PROP_CURRENT_TIME, mMediaPlayer.getCurrentPosition() / 1000.0);
-                    event.putDouble(EVENT_PROP_PLAYABLE_DURATION, mVideoBufferedDuration / 1000.0); //TODO:mBufferUpdateRunnable
+                    event.putDouble(EVENT_PROP_BUFFER_PERCENT, mVideoBufferedPercent);
+                    event.putDouble(EVENT_PROP_PLAYABLE_DURATION, mVideoDuration / 1000.0); //TODO:mBufferUpdateRunnable
                     mEventEmitter.receiveEvent(getId(), Events.EVENT_PROGRESS.toString(), event);
                 }
                 mProgressUpdateHandler.postDelayed(mProgressUpdateRunnable, 250);
@@ -163,7 +176,7 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
 
         mMediaPlayerValid = false;
         mVideoDuration = 0;
-        mVideoBufferedDuration = 0;
+        mVideoBufferedPercent = 0;
 
         initializeMediaPlayerIfNeeded();
         mMediaPlayer.reset();
@@ -190,7 +203,7 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         WritableMap event = Arguments.createMap();
         event.putMap(ReactVideoViewManager.PROP_SRC, src);
         mEventEmitter.receiveEvent(getId(), Events.EVENT_LOAD_START.toString(), event);
-
+        _activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         prepareAsync(this);
     }
 
@@ -220,10 +233,12 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
 
         if (mPaused) {
             if (mMediaPlayer.isPlaying()) {
+                _activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                 pause();
             }
         } else {
             if (!mMediaPlayer.isPlaying()) {
+                _activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                 start();
             }
         }
@@ -299,7 +314,7 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
 
     @Override
     public void onBufferingUpdate(MediaPlayer mp, int percent) {
-        mVideoBufferedDuration = (int) Math.round((double) (mVideoDuration * percent) / 100.0);
+        mVideoBufferedPercent =  Math.round( ( percent) );
     }
 
     @Override

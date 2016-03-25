@@ -74,7 +74,7 @@ class Video extends Component {
       uri = 'file://' + uri;
     }
 
-    const isNetwork = !!(uri && uri.match(/^https?:/));
+    const isNetwork = !!(uri && (uri.match(/^https?:/) || uri.match(/^rtsp?:/) ));
     const isAsset = !!(uri && uri.match(/^(assets-library|file):/));
 
     let nativeResizeMode;
@@ -135,7 +135,7 @@ Video.propTypes = {
   onProgress: PropTypes.func,
   onSeek: PropTypes.func,
   onEnd: PropTypes.func,
-  
+
   /* Required by react-native */
   scaleX: React.PropTypes.number,
   scaleY: React.PropTypes.number,

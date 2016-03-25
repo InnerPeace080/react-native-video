@@ -1,6 +1,7 @@
 package com.brentvatne.react;
 
 import android.app.Activity;
+
 import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.JavaScriptModule;
 import com.facebook.react.bridge.NativeModule;
@@ -12,7 +13,10 @@ import java.util.Collections;
 import java.util.List;
 
 public class ReactVideoPackage implements ReactPackage {
-
+    private Activity _activity;
+    public ReactVideoPackage(Activity activity){
+        _activity = activity;
+    }
     @Override
     public List<NativeModule> createNativeModules(ReactApplicationContext reactContext) {
         return Collections.emptyList();
@@ -25,6 +29,6 @@ public class ReactVideoPackage implements ReactPackage {
 
     @Override
     public List<ViewManager> createViewManagers(ReactApplicationContext reactContext) {
-        return Arrays.<ViewManager>asList(new ReactVideoViewManager());
+        return Arrays.<ViewManager>asList(new ReactVideoViewManager(_activity));
     }
 }

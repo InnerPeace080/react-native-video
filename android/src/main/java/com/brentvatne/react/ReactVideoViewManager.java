@@ -1,18 +1,18 @@
 package com.brentvatne.react;
 
+import android.app.Activity;
+
 import com.brentvatne.react.ReactVideoView.Events;
-import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.common.MapBuilder;
 import com.facebook.react.uimanager.ReactProp;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.uimanager.ThemedReactContext;
-import com.facebook.react.uimanager.events.RCTEventEmitter;
 import com.yqritc.scalablevideoview.ScalableType;
 
-import javax.annotation.Nullable;
 import java.util.Map;
+
+import javax.annotation.Nullable;
 
 public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
 
@@ -30,6 +30,11 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
     public static final String PROP_SEEK = "seek";
     public static final String PROP_RATE = "rate";
 
+    private Activity _activity;
+    public ReactVideoViewManager(Activity activity){
+        _activity=activity;
+    }
+
     @Override
     public String getName() {
         return REACT_CLASS;
@@ -37,7 +42,7 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
 
     @Override
     protected ReactVideoView createViewInstance(ThemedReactContext themedReactContext) {
-        return new ReactVideoView(themedReactContext);
+        return new ReactVideoView(themedReactContext,_activity);
     }
 
     @Override
