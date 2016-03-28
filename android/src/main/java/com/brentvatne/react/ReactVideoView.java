@@ -100,10 +100,11 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
     private float mVolume = 1.0f;
     private float mRate = 1.0f;
 
-    private boolean mMediaPlayerValid = false; // True if mMediaPlayer is in prepared, started, or paused state.
+    private boolean mMediaPlayerValid = false; // True if mMediaPlayer is in prepared, started, or paused state or end.
     private int mVideoDuration = 0;
     private int mVideoBufferedPercent = 0;
 
+    private boolean mVideoValid = true;
     public ReactVideoView(ThemedReactContext themedReactContext,Activity activity) {
         super(themedReactContext);
         _activity = activity;
@@ -118,11 +119,10 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
             int count = 0;
             @Override
             public void run() {
-
-//                if (!mMediaPlayerValid) {
-//                    mProgressUpdateHandler.removeCallbacks(mProgressUpdateRunnable);
-//                    return;
-//                }
+                if (!mVideoValid) {
+                    mProgressUpdateHandler.removeCallbacks(mProgressUpdateRunnable);
+                    return;
+                }
 
                 if (mMediaPlayerValid) {
                     this.count++;
@@ -147,7 +147,7 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
                     WritableMap event = Arguments.createMap();
                     event.putDouble(EVENT_PROP_CURRENT_TIME, mMediaPlayer.getCurrentPosition() / 1000.0);
                     event.putDouble(EVENT_PROP_BUFFER_PERCENT, mVideoBufferedPercent);
-                    event.putDouble(EVENT_PROP_PLAYABLE_DURATION, mVideoDuration / 1000.0); //TODO:mBufferUpdateRunnable
+                    event.putDouble(EVENT_PROP_PLAYABLE_DURATION, mVideoDuration / 1000.0);
                     mEventEmitter.receiveEvent(getId(), Events.EVENT_PROGRESS.toString(), event);
                 }
                 mProgressUpdateHandler.postDelayed(mProgressUpdateRunnable, 250);
@@ -332,12 +332,13 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
 
     @Override
     public void onCompletion(MediaPlayer mp) {
-        mMediaPlayerValid = false;
+//        mMediaPlayerValid = false;
         mEventEmitter.receiveEvent(getId(), Events.EVENT_END.toString(), null);
     }
 
     @Override
     protected void onDetachedFromWindow() {
+        mVideoValid = false;
         mMediaPlayerValid = false;
         try {
             super.onDetachedFromWindow();
