@@ -340,6 +340,7 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
     protected void onDetachedFromWindow() {
         mVideoValid = false;
         mMediaPlayerValid = false;
+        _activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         try {
             super.onDetachedFromWindow();
         }
