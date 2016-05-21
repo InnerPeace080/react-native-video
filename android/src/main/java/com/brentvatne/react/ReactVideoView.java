@@ -93,7 +93,6 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
     private String mSrcUriString = null;
     private String mSrcType = "mp4";
     private boolean mSrcIsNetwork = false;
-    private boolean mSrcIsAsset = false;
     private ScalableType mResizeMode = ScalableType.LEFT_TOP;
     private boolean mRepeat = false;
     private boolean mPaused = false;
@@ -139,6 +138,7 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
                         if (!foreground) {
                             mMediaPlayerValid = false;
                             mMediaPlayer.stop();
+                            mMediaPlayer.reset();
                             mMediaPlayer.release();
                             return;
                         }
@@ -170,34 +170,48 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         }
     }
 
-    public void setSrc(final String uriString, final String type, final boolean isNetwork, final boolean isAsset) {
+    public void setSrc(final String uriString, final String type, final boolean isNetwork) {
+
         mSrcUriString = uriString;
         mSrcType = type;
         mSrcIsNetwork = isNetwork;
-        mSrcIsAsset = isAsset;
 
         mMediaPlayerValid = false;
         mVideoDuration = 0;
         mVideoBufferedPercent = 0;
 
-        initializeMediaPlayerIfNeeded();
-        mMediaPlayer.reset();
+        class SetSrc implements Runnable {
+            ReactVideoView mReactVideoView;
+            SetSrc(ReactVideoView reactVideoView){mReactVideoView = reactVideoView;}
+            @Override
+            public void run() {
+                initializeMediaPlayerIfNeeded();
 
-        try {
-            if (isNetwork || isAsset) {
-                setDataSource(uriString);
-            } else {
-                setRawData(mThemedReactContext.getResources().getIdentifier(
-                        uriString,
-                        "raw",
-                        mThemedReactContext.getPackageName()
-                ));
+                try {
+                    mMediaPlayer.reset();
+                    if (isNetwork) {
+                        setDataSource(uriString);
+                    } else {
+                        setRawData(mThemedReactContext.getResources().getIdentifier(
+                                uriString,
+                                "raw",
+                                mThemedReactContext.getPackageName()
+                        ));
+                    }
+
+                    prepareAsync(mReactVideoView);
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return;
+                }
+
+
+
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            return;
         }
 
+        new Thread(new SetSrc(this)).start();
         WritableMap src = Arguments.createMap();
         src.putString(ReactVideoViewManager.PROP_SRC_URI, uriString);
         src.putString(ReactVideoViewManager.PROP_SRC_TYPE, type);
@@ -206,7 +220,9 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         event.putMap(ReactVideoViewManager.PROP_SRC, src);
         mEventEmitter.receiveEvent(getId(), Events.EVENT_LOAD_START.toString(), event);
         _activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        prepareAsync(this);
+
+
+
     }
 
     public void setResizeModeModifier(final ScalableType resizeMode) {
@@ -232,16 +248,34 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         if (!mMediaPlayerValid) {
             return;
         }
+        class PauseVideo implements Runnable {
+            @Override
+            public void run() {
+                try {
+                    if (mPaused) {
+                        mMediaPlayer.pause();
+                    }
+                    else {
+                        mMediaPlayer.start();
+                    }
+                }
+                catch(Exception ex){
+                    Log.e("ReactVideoView","onDetachedFromWindow err");
+                }
+
+            }
+        }
+
 
         if (mPaused) {
             if (mMediaPlayer.isPlaying()) {
                 _activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                pause();
+                new Thread(new PauseVideo()).start();
             }
         } else {
             if (!mMediaPlayer.isPlaying()) {
                 _activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                start();
+                new Thread(new PauseVideo()).start();
             }
         }
     }
@@ -343,19 +377,37 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         mVideoValid = false;
         mMediaPlayerValid = false;
         _activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        try {
-            super.onDetachedFromWindow();
+
+
+
+        class Release implements Runnable {
+            ReactVideoView mReactVideoView;
+            Release(ReactVideoView reactVideoView){mReactVideoView = reactVideoView;}
+            @Override
+            public void run() {
+                try {
+                    mMediaPlayer.stop();
+                    mMediaPlayer.reset();
+                    mMediaPlayer.release();
+                    mMediaPlayer = null;
+                }
+                catch(Exception ex){
+                    Log.e("ReactVideoView","onDetachedFromWindow err");
+                }
+
+            }
         }
-        catch(Exception ex){
-            Log.e("ReactVideoView","onDetachedFromWindow err");
-        }
+
+        new Thread(new Release(this)).start();
+
+        super.onDetachedFromWindow();
     }
 
     @Override
     protected void onAttachedToWindow() {
         try {
             super.onAttachedToWindow();
-        	setSrc(mSrcUriString, mSrcType, mSrcIsNetwork, mSrcIsAsset);
+            setSrc(mSrcUriString, mSrcType, mSrcIsNetwork);
         }
         catch(Exception ex){
             Log.e("ReactVideoView","onAttachedToWindow err");
