@@ -329,6 +329,7 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         mEventEmitter.receiveEvent(getId(), Events.EVENT_LOAD.toString(), event);
 
 //        applyModifiers();
+        setResizeModeModifier(mResizeMode);
         class StartVideo implements Runnable {
             @Override
             public void run() {
