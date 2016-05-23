@@ -251,33 +251,25 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         class PauseVideo implements Runnable {
             @Override
             public void run() {
-                try {
-                    if (mPaused) {
-                        mMediaPlayer.pause();
-                    }
-                    else {
-                        mMediaPlayer.start();
-                    }
+                if (mPaused) {
+                    mMediaPlayer.pause();
                 }
-                catch(Exception ex){
-                    Log.e("ReactVideoView","onDetachedFromWindow err");
+                else {
+                    mMediaPlayer.start();
                 }
 
             }
         }
 
 
-        if (mPaused) {
-            if (mMediaPlayer.isPlaying()) {
-                _activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                new Thread(new PauseVideo()).start();
-            }
-        } else {
-            if (!mMediaPlayer.isPlaying()) {
-                _activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                new Thread(new PauseVideo()).start();
-            }
+        if (mMediaPlayer.isPlaying()) {
+            _activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
+        else{
+            _activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+
+        new Thread(new PauseVideo()).start();
     }
 
     public void setMutedModifier(final boolean muted) {
@@ -314,6 +306,8 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         setPausedModifier(mPaused);
         setMutedModifier(mMuted);
 //        setRateModifier(mRate);
+
+
     }
 
     @Override
@@ -334,7 +328,14 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         event.putBoolean(EVENT_PROP_STEP_FORWARD, true);
         mEventEmitter.receiveEvent(getId(), Events.EVENT_LOAD.toString(), event);
 
-        applyModifiers();
+//        applyModifiers();
+        class StartVideo implements Runnable {
+            @Override
+            public void run() {
+                mMediaPlayer.start();
+            }
+        }
+        new Thread(new StartVideo()).start();
     }
 
     @Override
