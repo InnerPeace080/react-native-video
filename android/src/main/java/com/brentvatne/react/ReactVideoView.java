@@ -257,12 +257,11 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
                 else {
                     mMediaPlayer.start();
                 }
-
             }
         }
 
 
-        if (mMediaPlayer.isPlaying()) {
+        if (mPaused) {
             _activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
         else{
@@ -328,6 +327,7 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         event.putBoolean(EVENT_PROP_STEP_FORWARD, true);
         mEventEmitter.receiveEvent(getId(), Events.EVENT_LOAD.toString(), event);
 
+        _activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 //        applyModifiers();
         setResizeModeModifier(mResizeMode);
         class StartVideo implements Runnable {
@@ -372,6 +372,7 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
     public void onCompletion(MediaPlayer mp) {
 //        mMediaPlayerValid = false;
         mEventEmitter.receiveEvent(getId(), Events.EVENT_END.toString(), null);
+        _activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
     @Override
