@@ -27,6 +27,7 @@ Android-ScalableVideoView/obj/
 Android-ScalableVideoView/apk/
 Android-ScalableVideoView/target/
 Android-ScalableVideoView/build/
+Android-ScalableVideoView/sample/
 
 # Local configuration file (sdk path, etc)
 Android-ScalableVideoView/local.properties
