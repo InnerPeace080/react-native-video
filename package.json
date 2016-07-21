@@ -5,6 +5,7 @@
   "main": "Video.js",
   "author": "Brent Vatne <brentvatne@gmail.com> (https://github.com/brentvatne)",
   "files": [
+    "Android-ScalableVideoView",
     "android/build.gradle",
     "android/RCTVideo.iml",
     "android/src/main/AndroidManifest.xml",
