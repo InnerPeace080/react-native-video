@@ -73,7 +73,9 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
         videoView.setSrc(
                 src.getString(PROP_SRC_URI),
                 src.getString(PROP_SRC_TYPE),
-                src.getBoolean(PROP_SRC_IS_NETWORK)
+                src.getBoolean(PROP_SRC_IS_NETWORK),
+                src.getBoolean(PROP_SRC_IS_ASSET)
+
         );
     }
 
