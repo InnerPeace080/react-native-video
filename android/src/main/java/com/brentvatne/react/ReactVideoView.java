@@ -1,10 +1,7 @@
 package com.brentvatne.react;
 
 import android.app.Activity;
-import android.app.ActivityManager;
-import android.content.Context;
 import android.media.MediaPlayer;
-import android.os.AsyncTask;
 import android.net.Uri;
 import android.os.Handler;
 import android.util.Log;
@@ -21,6 +18,7 @@ import com.yqritc.scalablevideoview.ScalableVideoView;
 
 import java.util.HashMap;
 import java.util.Map;
+
 
 public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnPreparedListener, MediaPlayer
         .OnErrorListener, MediaPlayer.OnBufferingUpdateListener, MediaPlayer.OnCompletionListener, MediaPlayer.OnInfoListener, LifecycleEventListener {
@@ -108,12 +106,13 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         mProgressUpdateRunnable = new Runnable() {
             @Override
             public void run() {
-                if (!mVideoValid) {
+                if (!mVideoValid && !isCompleted) {
                     mProgressUpdateHandler.removeCallbacks(mProgressUpdateRunnable);
                     return;
                 }
 
-                if (mMediaPlayerValid && !isCompleted) {
+                if (mMediaPlayerValid) {
+                    mVideoDuration = mMediaPlayer.getDuration();
                     WritableMap event = Arguments.createMap();
                     event.putDouble(EVENT_PROP_CURRENT_TIME, mMediaPlayer.getCurrentPosition() / 1000.0);
                     event.putDouble(EVENT_PROP_BUFFER_PERCENT, mVideoBufferedPercent);
@@ -422,13 +421,12 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
             @Override
             public void run() {
                 try {
-                    mMediaPlayer.stop();
-                    mMediaPlayer.reset();
                     mMediaPlayer.release();
                     mMediaPlayer = null;
                 }
                 catch(Exception ex){
-                    Log.e("ReactVideoView","onDetachedFromWindow err");
+                    Log.e("ReactVideoView","onDetachedFromWindow err " + ex);
+                    ex.printStackTrace();
                 }
 
             }
@@ -454,9 +452,27 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
     @Override
     public void onHostPause() {
 
-        if (mMediaPlayer != null && !mPlayInBackground) {
-            mMediaPlayer.pause();
+//        if (mMediaPlayer != null && !mPlayInBackground) {
+//            mMediaPlayer.pause();
+//        }
+
+        class Release implements Runnable {
+            @Override
+            public void run() {
+                try {
+                    mMediaPlayerValid = false;
+                    mMediaPlayer.release();
+                }
+                catch(Exception ex){
+                    Log.e("ReactVideoView","onHostPause err");
+                }
+
+            }
         }
+
+        new Thread(new Release()).start();
+
+
     }
 
     @Override
