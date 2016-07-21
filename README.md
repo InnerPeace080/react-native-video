@@ -1,9 +1,9 @@
 ## react-native-video
 
-A <Video> component for react-native, as seen in
+A `<Video>` component for react-native, as seen in
 [react-native-login](https://github.com/brentvatne/react-native-login)!
 
-Requires react-native >= 0.4.4
+Requires react-native >= 0.19.0
 
 ### Add it to your project
 
@@ -11,29 +11,39 @@ Run `npm install react-native-video --save`
 
 #### iOS
 
-1. Open your project in XCode, right click on `Libraries` and click `Add Files to "Your Project Name"`
-   * ![Screenshot](http://url.brentvatne.ca/jQp8.png) ![Screenshot](http://url.brentvatne.ca/1gqUD.png) (use the RCTVideo project rather than the one pictured in screenshot).
-2. Add `libRTCVideo.a` to `Build Phases -> Link Binary With Libraries`
-   ![(Screenshot)](http://url.brentvatne.ca/g9Wp.png).
-3. Add `.mp4` video file to project and to `Build Phases -> Copy Bundle Resources`
-4. Whenever you want to use it within React code now you can: `var Video =
-   require('react-native-video');`
+Install [rnpm](https://github.com/rnpm/rnpm) and run `rnpm link react-native-video`
+
+If you would like to allow other apps to play music over your video component, add:
+
+**AppDelegate.m**
+```
+#import <AVFoundation/AVFoundation.h>  // import
+
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
+{
+  ...
+  [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryAmbient error:nil];  // allow
+  ...
+}
+```
 
 #### Android
 
-Make the following additions to the given files.
+Install [rnpm](https://github.com/rnpm/rnpm) and run `rnpm link react-native-video`
+
+Or if you have trouble using [rnpm](https://github.com/rnpm/rnpm), make the following additions to the given files manually:
 
 **android/settings.gradle**
 ```
-include ':RCTVideo', ':app'
-project(':RCTVideo').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-video/android')
+include ':react-native-video'
+project(':react-native-video').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-video/android')
 ```
 
 **android/app/build.gradle**
 ```
 dependencies {
    ...
-   compile project(':RCTVideo')
+   compile project(':react-native-video')
 }
 ```
 
@@ -62,6 +72,8 @@ Under `.addPackage(new MainReactPackage())`:
        paused={false}               // Pauses playback entirely.
        resizeMode="cover"           // Fill the whole screen at aspect ratio.
        repeat={true}                // Repeat forever.
+       playInBackground={false}     // Audio continues to play when app entering background.
+       playWhenInactive={false}     // [iOS] Video continues to play when control or notification center are shown.
        onLoadStart={this.loadStart} // Callback when video starts to load
        onLoad={this.setDuration}    // Callback when video loads
        onProgress={this.setTime}    // Callback every ~250ms with currentTime
@@ -70,7 +82,7 @@ Under `.addPackage(new MainReactPackage())`:
        style={styles.backgroundVideo} />
 
 // Later on in your styles..
-var styles = Stylesheet.create({
+var styles = StyleSheet.create({
   backgroundVideo: {
     position: 'absolute',
     top: 0,
@@ -81,6 +93,10 @@ var styles = Stylesheet.create({
 });
 ```
 
+### Play in background on iOS
+
+To enable audio to play in background on iOS the audio session needs to be set to `AVAudioSessionCategoryPlayback`. See [Apple documentation][3].
+
 ## Static Methods
 
 `seek(seconds)`
@@ -89,7 +105,7 @@ Seeks the video to the specified time (in seconds). Access using a ref to the co
 
 ## Examples
 
-- See an [Example integration][1] in `react-native-login`.
+- See an [Example integration][1] in `react-native-login` *note that this example uses an older version of this library, before we used `export default` -- if you use `require` you will need to do `require('react-native-video').default` as per instructions above.
 - Try the included [VideoPlayer example][2] yourself:
 
    ```sh
@@ -102,18 +118,16 @@ Seeks the video to the specified time (in seconds). Access using a ref to the co
 
    Then `Cmd+R` to start the React Packager, build and run the project in the simulator.
 
-
 ## TODOS
 
-- [ ] Add some way to interface with `seekToTime`
 - [ ] Add support for captions
-- [ ] Support `require('video!...')`
 - [ ] Add support for playing multiple videos in a sequence (will interfere with current `repeat` implementation)
 - [ ] Callback to get buffering progress for remote videos
 - [ ] Bring API closer to HTML5 `<Video>` [reference](http://www.w3schools.com/tags/ref_av_dom.asp)
 
 [1]: https://github.com/brentvatne/react-native-login/blob/56c47a5d1e23781e86e19b27e10427fd6391f666/App/Screens/UserInfoScreen.js#L32-L35
 [2]: https://github.com/brentvatne/react-native-video/tree/master/Examples/VideoPlayer
+[3]: https://developer.apple.com/library/ios/qa/qa1668/_index.html
 
 ---
 

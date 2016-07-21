@@ -30,6 +30,7 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
     public static final String PROP_VOLUME = "volume";
     public static final String PROP_SEEK = "seek";
     public static final String PROP_RATE = "rate";
+    public static final String PROP_PLAY_IN_BACKGROUND = "playInBackground";
 
     private Activity _activity;
     public ReactVideoViewManager(Activity activity){
@@ -109,5 +110,10 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
     @ReactProp(name = PROP_RATE)
     public void setRate(final ReactVideoView videoView, final float rate) {
         videoView.setRateModifier(rate);
+    }
+
+    @ReactProp(name = PROP_PLAY_IN_BACKGROUND, defaultBoolean = false)
+    public void setPlayInBackground(final ReactVideoView videoView, final boolean playInBackground) {
+        videoView.setPlayInBackground(playInBackground);
     }
 }

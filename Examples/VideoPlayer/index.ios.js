@@ -31,7 +31,7 @@ class VideoPlayer extends Component {
     paused: true,
     skin: 'custom'
   };
-  
+
   onLoad(data) {
     this.setState({duration: data.duration});
   }
@@ -106,17 +106,19 @@ class VideoPlayer extends Component {
     return (
       <View style={styles.container}>
         <TouchableOpacity style={styles.fullScreen} onPress={() => {this.setState({paused: !this.state.paused})}}>
-          <Video source={{uri: "broadchurch"}}
-                 style={styles.fullScreen}
-                 rate={this.state.rate}
-                 paused={this.state.paused}
-                 volume={this.state.volume}
-                 muted={this.state.muted}
-                 resizeMode={this.state.resizeMode}
-                 onLoad={this.onLoad}
-                 onProgress={this.onProgress}
-                 onEnd={() => { AlertIOS.alert('Done!') }}
-                 repeat={true} />
+          <Video
+            source={{uri: "broadchurch"}}
+            style={styles.fullScreen}
+            rate={this.state.rate}
+            paused={this.state.paused}
+            volume={this.state.volume}
+            muted={this.state.muted}
+            resizeMode={this.state.resizeMode}
+            onLoad={this.onLoad}
+            onProgress={this.onProgress}
+            onEnd={() => { AlertIOS.alert('Done!') }}
+            repeat={true}
+          />
         </TouchableOpacity>
 
         <View style={styles.controls}>
@@ -163,18 +165,20 @@ class VideoPlayer extends Component {
     return (
       <View style={styles.container}>
         <View style={styles.fullScreen}>
-          <Video source={{uri: "broadchurch"}}
-                 style={videoStyle}
-                 rate={this.state.rate}
-                 paused={this.state.paused}
-                 volume={this.state.volume}
-                 muted={this.state.muted}
-                 resizeMode={this.state.resizeMode}
-                 onLoad={this.onLoad}
-                 onProgress={this.onProgress}
-                 onEnd={() => { AlertIOS.alert('Done!') }}
-                 repeat={true}
-                 controls={this.state.controls} />
+          <Video
+            source={{uri: "broadchurch"}}
+            style={videoStyle}
+            rate={this.state.rate}
+            paused={this.state.paused}
+            volume={this.state.volume}
+            muted={this.state.muted}
+            resizeMode={this.state.resizeMode}
+            onLoad={this.onLoad}
+            onProgress={this.onProgress}
+            onEnd={() => { AlertIOS.alert('Done!') }}
+            repeat={true}
+            controls={this.state.controls}
+          />
         </View>
         <View style={styles.controls}>
           <View style={styles.generalControls}>
