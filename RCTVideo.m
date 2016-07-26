@@ -190,22 +190,32 @@ static NSString *const playbackRate = @"rate";
  */
 - (NSNumber *)calculatePlayableDuration
 {
-  AVPlayerItem *video = _player.currentItem;
-  if (video.status == AVPlayerItemStatusReadyToPlay) {
-    __block CMTimeRange effectiveTimeRange;
-    [video.loadedTimeRanges enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
-      CMTimeRange timeRange = [obj CMTimeRangeValue];
-      if (CMTimeRangeContainsTime(timeRange, video.currentTime)) {
-        effectiveTimeRange = timeRange;
-        *stop = YES;
-      }
-    }];
-    Float64 playableDuration = CMTimeGetSeconds(CMTimeRangeGetEnd(effectiveTimeRange));
-    if (playableDuration > 0) {
-      return [NSNumber numberWithFloat:playableDuration];
+//  AVPlayerItem *video = _player.currentItem;
+//  if (video.status == AVPlayerItemStatusReadyToPlay) {
+//    __block CMTimeRange effectiveTimeRange;
+//    [video.loadedTimeRanges enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+//      CMTimeRange timeRange = [obj CMTimeRangeValue];
+//      if (CMTimeRangeContainsTime(timeRange, video.currentTime)) {
+//        effectiveTimeRange = timeRange;
+//        *stop = YES;
+//      }
+//    }];
+//    Float64 playableDuration = CMTimeGetSeconds(CMTimeRangeGetEnd(effectiveTimeRange));
+//    if (playableDuration > 0) {
+//      return [NSNumber numberWithFloat:playableDuration];
+//    }
+//  }
+//  return [NSNumber numberWithInteger:0];
+    CMTime duration = _player.currentItem.duration; //total time
+    AVPlayerItem *video = _player.currentItem;
+    if (video.status == AVPlayerItemStatusReadyToPlay) {
+        NSTimeInterval playableDuration = CMTimeGetSeconds(duration);
+        if (playableDuration > 0) {
+            return [NSNumber numberWithDouble:playableDuration];
+        }
+        
     }
-  }
-  return [NSNumber numberWithInteger:0];
+    return [NSNumber numberWithInteger:0];
 }
 
 - (void)addPlayerItemObservers
