@@ -6,7 +6,6 @@ import android.net.Uri;
 import android.os.Handler;
 import android.util.Log;
 import android.view.WindowManager;
-import android.webkit.CookieManager;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.LifecycleEventListener;
@@ -159,24 +158,7 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
 
                 try {
                     mMediaPlayer.reset();
-                    if (isNetwork) {
-						// Use the shared CookieManager to access the cookies
-		                // set by WebViews inside the same app
-		                CookieManager cookieManager = CookieManager.getInstance();
-
-		                Uri parsedUrl = Uri.parse(uriString);
-		                Uri.Builder builtUrl = parsedUrl.buildUpon();
-
-		                String cookie = cookieManager.getCookie(builtUrl.build().toString());
-
-		                Map<String, String> headers = new HashMap<String, String>();
-
-		                if (cookie != null) {
-		                    headers.put("Cookie", cookie);
-		                }
-
-		                setDataSource(mThemedReactContext, parsedUrl, headers);
-		            } else if (isAsset) {
+            if (isNetwork || isAsset) {
 		                if (uriString.startsWith("content://")) {
 		                    Uri parsedUrl = Uri.parse(uriString);
 		                    setDataSource(mThemedReactContext, parsedUrl);
