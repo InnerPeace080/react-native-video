@@ -50,6 +50,11 @@ export default class Video extends Component {
     }
   };
 
+  _onHeadphoneOut = (event) => {
+    if (this.props.onHeadphoneOut) {
+      this.props.onHeadphoneOut(event.nativeEvent);
+    }
+  };
   _onLoad = (event) => {
     if (this.props.onLoad) {
       this.props.onLoad(event.nativeEvent);
@@ -62,11 +67,30 @@ export default class Video extends Component {
     }
   };
 
+
+  _onVideoTestBuffer = (event) => {
+    if (this.props.onVideoTestBuffer) {
+      this.props.onVideoTestBuffer(event.nativeEvent);
+    }
+  };
   _onProgress = (event) => {
     if (this.props.onProgress) {
       this.props.onProgress(event.nativeEvent);
     }
   };
+
+  _onVideoStuck = (event) => {
+    if (this.props.onVideoStuck) {
+      this.props.onVideoStuck(event.nativeEvent);
+    }
+  };
+
+  _onVideoContinue = (event) => {
+    if (this.props.onVideoContinue) {
+      this.props.onVideoContinue(event.nativeEvent);
+    }
+  };
+
 
   _onSeek = (event) => {
     if (this.props.onSeek) {
@@ -169,6 +193,10 @@ export default class Video extends Component {
       onVideoProgress: this._onProgress,
       onVideoSeek: this._onSeek,
       onVideoEnd: this._onEnd,
+      onVideoStuck: this._onVideoStuck,
+      onVideoContinue: this._onVideoContinue,
+      onHeadphoneOut: this._onHeadphoneOut,
+      onVideoTestBuffer: this._onVideoTestBuffer,
       onVideoFullscreenPlayerWillPresent: this._onFullscreenPlayerWillPresent,
       onVideoFullscreenPlayerDidPresent: this._onFullscreenPlayerDidPresent,
       onVideoFullscreenPlayerWillDismiss: this._onFullscreenPlayerWillDismiss,

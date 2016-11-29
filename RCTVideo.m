@@ -3,6 +3,7 @@
 #import "RCTBridgeModule.h"
 #import "RCTEventDispatcher.h"
 #import "UIView+React.h"
+#import "AVFoundation/AVFoundation.h"
 
 static NSString *const statusKeyPath = @"status";
 static NSString *const playbackLikelyToKeepUpKeyPath = @"playbackLikelyToKeepUp";
@@ -16,13 +17,13 @@ static NSString *const playbackRate = @"rate";
   AVPlayerItem *_playerItem;
   BOOL _playerItemObserversSet;
   BOOL _playerBufferEmpty;
+  bool _previousNull;
   AVPlayerLayer *_playerLayer;
   AVPlayerViewController *_playerViewController;
   NSURL *_videoURL;
 
   /* Required to publish events */
   RCTEventDispatcher *_eventDispatcher;
-  BOOL _playbackRateObserverRegistered;
 
   bool _pendingSeek;
   float _pendingSeekTime;
@@ -40,8 +41,6 @@ static NSString *const playbackRate = @"rate";
   BOOL _paused;
   BOOL _repeat;
   BOOL _playbackStalled;
-  BOOL _playInBackground;
-  BOOL _playWhenInactive;
   NSString * _resizeMode;
   BOOL _fullscreenPlayerPresented;
   UIViewController * _presentingViewController;
@@ -52,7 +51,6 @@ static NSString *const playbackRate = @"rate";
   if ((self = [super init])) {
     _eventDispatcher = eventDispatcher;
 
-    _playbackRateObserverRegistered = NO;
     _playbackStalled = NO;
     _rate = 1.0;
     _volume = 1.0;
@@ -63,24 +61,27 @@ static NSString *const playbackRate = @"rate";
     _progressUpdateInterval = 250;
     _controls = NO;
     _playerBufferEmpty = YES;
-    _playInBackground = false;
-    _playWhenInactive = false;
+    _previousNull = false;
 
+    // catch app is about to inactive
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(applicationWillResignActive:)
                                                  name:UIApplicationWillResignActiveNotification
                                                object:nil];
 
     [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(applicationDidEnterBackground:)
-                                                 name:UIApplicationDidEnterBackgroundNotification
-                                               object:nil];
-
-    [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(applicationWillEnterForeground:)
                                                  name:UIApplicationWillEnterForegroundNotification
                                                object:nil];
+   // catch headphone has plugged out
+   [[NSNotificationCenter defaultCenter] addObserver:self
+                                            selector:@selector(routeChanged:)
+                                                name:AVAudioSessionRouteChangeNotification
+                                              object:nil];
   }
+  [[AVAudioSession sharedInstance]
+                setCategory: AVAudioSessionCategoryPlayback
+                      error: nil];
 
   return self;
 }
@@ -106,7 +107,7 @@ static NSString *const playbackRate = @"rate";
     {
         return([playerItem duration]);
     }
-    
+
     return(kCMTimeInvalid);
 }
 
@@ -132,25 +133,31 @@ static NSString *const playbackRate = @"rate";
 
 - (void)applicationWillResignActive:(NSNotification *)notification
 {
-  if (_playInBackground || _playWhenInactive || _paused) return;
-
-  [_player pause];
-  [_player setRate:0.0];
-}
-
-- (void)applicationDidEnterBackground:(NSNotification *)notification
-{
-  if (_playInBackground) {
-    // Needed to play sound in background. See https://developer.apple.com/library/ios/qa/qa1668/_index.html
-    [_playerLayer setPlayer:nil];
-  }
+  // if (!_paused) {
+  //   [_player pause];
+  //   [_player setRate:0.0];
+  // }
 }
 
 - (void)applicationWillEnterForeground:(NSNotification *)notification
 {
   [self applyModifiers];
-  if (_playInBackground) {
-    [_playerLayer setPlayer:_player];
+}
+
+- (void)routeChanged:(NSNotification *)notification
+{
+  NSLog(@"routeChanged");
+  NSInteger routeChangeReason = [notification.userInfo[AVAudioSessionRouteChangeReasonKey] integerValue];
+  NSLog(@"routeChangeReason: %d", routeChangeReason);
+  NSLog(@"Constant: %d", AVAudioSessionRouteChangeReasonOldDeviceUnavailable);
+
+  if (routeChangeReason == AVAudioSessionRouteChangeReasonOldDeviceUnavailable) {
+    NSLog(@"Need to stop video");
+    // The old device is unavailable == headphones have been unplugged
+    [_eventDispatcher sendInputEventWithName:@"onHeadphoneOut"
+                                        body:@{
+                                                 @"target": self.reactTag
+                                             }];
   }
 }
 
@@ -162,7 +169,7 @@ static NSString *const playbackRate = @"rate";
    if (video == nil || video.status != AVPlayerItemStatusReadyToPlay) {
      return;
    }
-    
+
    CMTime playerDuration = [self playerItemDuration];
    if (CMTIME_IS_INVALID(playerDuration)) {
       return;
@@ -174,6 +181,7 @@ static NSString *const playbackRate = @"rate";
    if( currentTimeSecs >= 0 && currentTimeSecs <= duration) {
         [_eventDispatcher sendInputEventWithName:@"onVideoProgress"
                                             body:@{
+                                                     @"availableDuration": [self availableDuration],
                                                      @"currentTime": [NSNumber numberWithFloat:CMTimeGetSeconds(currentTime)],
                                                      @"playableDuration": [self calculatePlayableDuration],
                                                      @"atValue": [NSNumber numberWithLongLong:currentTime.value],
@@ -213,7 +221,7 @@ static NSString *const playbackRate = @"rate";
         if (playableDuration > 0) {
             return [NSNumber numberWithDouble:playableDuration];
         }
-        
+
     }
     return [NSNumber numberWithInteger:0];
 }
@@ -246,6 +254,27 @@ static NSString *const playbackRate = @"rate";
   [self removePlayerTimeObserver];
   [self removePlayerItemObservers];
   _playerItem = [self playerItemForSource:source];
+
+  if(_playerItem == nil) {
+    _previousNull = true;
+    [_player pause];
+    [_player setRate:0.0];
+    [self removePlayerLayer];
+    [_playerViewController.view removeFromSuperview];
+    _playerViewController = nil;
+
+      if (_player != nil)
+          [_player removeObserver:self forKeyPath:playbackRate];
+
+    [_eventDispatcher sendInputEventWithName:@"onVideoLoadStart"
+                                        body:@{@"src": @{
+                                                   @"uri": [source objectForKey:@"uri"],
+                                                   @"type": [source objectForKey:@"type"],
+                                                   @"isNetwork":[NSNumber numberWithBool:(bool)[source objectForKey:@"isNetwork"]]},
+                                               @"target": self.reactTag}];
+    return;
+  }
+
   [self addPlayerItemObservers];
 
   [_player pause];
@@ -253,16 +282,15 @@ static NSString *const playbackRate = @"rate";
   [_playerViewController.view removeFromSuperview];
   _playerViewController = nil;
 
-  if (_playbackRateObserverRegistered) {
-    [_player removeObserver:self forKeyPath:playbackRate context:nil];
-    _playbackRateObserverRegistered = NO;
+  if (_player != nil) {
+    if(!_previousNull)
+      [_player removeObserver:self forKeyPath:playbackRate];
   }
-
+  _previousNull = false;
   _player = [AVPlayer playerWithPlayerItem:_playerItem];
   _player.actionAtItemEnd = AVPlayerActionAtItemEndNone;
-  
   [_player addObserver:self forKeyPath:playbackRate options:0 context:nil];
-  _playbackRateObserverRegistered = YES;
+  // [_player addObserver:self forKeyPath:@"loadedTimeRanges" options:NSKeyValueObservingOptionNew context:nil];
 
   const Float64 progressUpdateIntervalMS = _progressUpdateInterval / 1000;
   // @see endScrubbing in AVPlayerDemoPlaybackViewController.m of https://developer.apple.com/library/ios/samplecode/AVPlayerDemo/Introduction/Intro.html
@@ -286,6 +314,10 @@ static NSString *const playbackRate = @"rate";
   NSString *uri = [source objectForKey:@"uri"];
   NSString *type = [source objectForKey:@"type"];
 
+  if (!uri.length) {
+      return nil;
+  }
+
   NSURL *url = (isNetwork || isAsset) ?
     [NSURL URLWithString:uri] :
     [[NSURL alloc] initFileURLWithPath:[[NSBundle mainBundle] pathForResource:uri ofType:type]];
@@ -297,12 +329,21 @@ static NSString *const playbackRate = @"rate";
 
   return [AVPlayerItem playerItemWithURL:url];
 }
+- (NSNumber *)availableDuration
+{
+    NSValue *range = _player.currentItem.loadedTimeRanges.firstObject;
+    if (range != nil){
+      Float64 start = CMTimeGetSeconds(range.CMTimeRangeValue.start);
+      Float64 duration = CMTimeGetSeconds(range.CMTimeRangeValue.duration);
+      return [NSNumber numberWithDouble:(start+duration)];
+    }
+    return [NSNumber numberWithDouble:CMTimeGetSeconds(kCMTimeZero)];
+}
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
    if (object == _playerItem) {
-
-    if ([keyPath isEqualToString:statusKeyPath]) {
+     if ([keyPath isEqualToString:statusKeyPath]) {
       // Handle player item status change.
       if (_playerItem.status == AVPlayerItemStatusReadyToPlay) {
         float duration = CMTimeGetSeconds(_playerItem.asset.duration);
@@ -310,7 +351,7 @@ static NSString *const playbackRate = @"rate";
         if (isnan(duration)) {
           duration = 0.0;
         }
-          
+
         NSObject *width = @"undefined";
         NSObject *height = @"undefined";
         NSString *orientation = @"undefined";
@@ -357,10 +398,18 @@ static NSString *const playbackRate = @"rate";
       }
     } else if ([keyPath isEqualToString:playbackBufferEmptyKeyPath]) {
       _playerBufferEmpty = YES;
+      [_eventDispatcher sendInputEventWithName:@"onVideoStuck"
+                                          body:@{
+
+                                                 @"target": self.reactTag}];
     } else if ([keyPath isEqualToString:playbackLikelyToKeepUpKeyPath]) {
       // Continue playing (or not if paused) after being paused due to hitting an unbuffered zone.
       if ((!_controls || _playerBufferEmpty) && _playerItem.playbackLikelyToKeepUp) {
         [self setPaused:_paused];
+        [_eventDispatcher sendInputEventWithName:@"onVideoContinue"
+                                            body:@{
+
+                                                   @"target": self.reactTag}];
       }
       _playerBufferEmpty = NO;
     }
@@ -433,16 +482,6 @@ static NSString *const playbackRate = @"rate";
   _resizeMode = mode;
 }
 
-- (void)setPlayInBackground:(BOOL)playInBackground
-{
-  _playInBackground = playInBackground;
-}
-
-- (void)setPlayWhenInactive:(BOOL)playWhenInactive
-{
-  _playWhenInactive = playWhenInactive;
-}
-
 - (void)setPaused:(BOOL)paused
 {
   if (paused) {
@@ -452,7 +491,7 @@ static NSString *const playbackRate = @"rate";
     [_player play];
     [_player setRate:_rate];
   }
-  
+
   _paused = paused;
 }
 
@@ -468,7 +507,7 @@ static NSString *const playbackRate = @"rate";
 
 - (void)setSeek:(float)seekTime
 {
-  int timeScale = 10000;
+  int timeScale = _player.currentItem.asset.duration.timescale;
 
   AVPlayerItem *item = _player.currentItem;
   if (item && item.status == AVPlayerItemStatusReadyToPlay) {
@@ -478,9 +517,9 @@ static NSString *const playbackRate = @"rate";
     CMTime current = item.currentTime;
     // TODO figure out a good tolerance level
     CMTime tolerance = CMTimeMake(1000, timeScale);
-    
+
     if (CMTimeCompare(current, cmSeekTime) != 0) {
-      [_player seekToTime:cmSeekTime toleranceBefore:tolerance toleranceAfter:tolerance completionHandler:^(BOOL finished) {
+      [_player seekToTime:cmSeekTime toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero completionHandler:^(BOOL finished) {
         [_eventDispatcher sendInputEventWithName:@"onVideoSeek"
                                             body:@{@"currentTime": [NSNumber numberWithFloat:CMTimeGetSeconds(item.currentTime)],
                                                    @"seekTime": [NSNumber numberWithFloat:seekTime],
@@ -551,7 +590,7 @@ static NSString *const playbackRate = @"rate";
         }
         // Set presentation style to fullscreen
         [_playerViewController setModalPresentationStyle:UIModalPresentationFullScreen];
-        
+
         // Find the nearest view controller
         UIViewController *viewController = [self firstAvailableUIViewController];
         if( !viewController )
@@ -599,9 +638,9 @@ static NSString *const playbackRate = @"rate";
       _playerLayer = [AVPlayerLayer playerLayerWithPlayer:_player];
       _playerLayer.frame = self.bounds;
       _playerLayer.needsDisplayOnBoundsChange = YES;
-        
+
       [_playerLayer addObserver:self forKeyPath:readyForDisplayKeyPath options:NSKeyValueObservingOptionNew context:nil];
-    
+
       [self.layer addSublayer:_playerLayer];
       self.layer.needsDisplayOnBoundsChange = YES;
     }
@@ -664,7 +703,7 @@ static NSString *const playbackRate = @"rate";
   {
     [self setControls:true];
   }
-  
+
   if( _controls )
   {
      view.frame = self.bounds;
@@ -696,7 +735,7 @@ static NSString *const playbackRate = @"rate";
   if( _controls )
   {
     _playerViewController.view.frame = self.bounds;
-  
+
     // also adjust all subviews of contentOverlayView
     for (UIView* subview in _playerViewController.contentOverlayView.subviews) {
       subview.frame = self.bounds;
@@ -716,14 +755,12 @@ static NSString *const playbackRate = @"rate";
 - (void)removeFromSuperview
 {
   [_player pause];
-  if (_playbackRateObserverRegistered) {
-    [_player removeObserver:self forKeyPath:playbackRate context:nil];
-    _playbackRateObserverRegistered = NO;
-  }
+  if(!_previousNull)
+    [_player removeObserver:self forKeyPath:playbackRate];
   _player = nil;
 
   [self removePlayerLayer];
-  
+
   [_playerViewController.view removeFromSuperview];
   _playerViewController = nil;
 
